@@ -122,6 +122,7 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
     NSString *htmlPath = [opfBasePath stringByAppendingPathComponent:
                           [manifest objectForKey:idref]];
     [htmlPaths addObject:htmlPath];
+
     if(maximumNumberOfLoadingHTML != kLoadAllFiles &&
        ++numberOfHTML >= maximumNumberOfLoadingHTML) break;
   }
@@ -170,14 +171,17 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
         attachmentPath = [attachmentPath stringByStandardizingPath];
         attachmentPath = [attachmentPath substringFromIndex:1];
 
-        [node setStringValue:[@"cid:" stringByAppendingString:attachmentPath]];
-
         NSData *attachmentData = [unzip dataWithContentsOfFile:attachmentPath];
         if(!attachmentData) continue;
 
+        [node setStringValue:[@"cid:" stringByAppendingString:attachmentPath]];
+
         NSDictionary *attachment;
-        attachment = [NSDictionary dictionaryWithObject:attachmentData forKey:(NSString *)kQLPreviewPropertyAttachmentDataKey];
+        attachment = [NSDictionary
+                      dictionaryWithObject:attachmentData
+                      forKey:(NSString *)kQLPreviewPropertyAttachmentDataKey];
         [attachments setObject:attachment forKey:attachmentPath];
+
         if(maximumNumberOfLoadingImage != kLoadAllFiles &&
            ++numberOfImage >= maximumNumberOfLoadingImage) break;
       }
