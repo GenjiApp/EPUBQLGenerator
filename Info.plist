@@ -11,7 +11,7 @@
 			<string>QLGenerator</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>org.idpf.epub</string>
+				<string>org.idpf.epub-container</string>
 			</array>
 		</dict>
 	</array>
@@ -62,18 +62,17 @@
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>
-				<string>public.zip-archive</string>
 				<string>public.data</string>
 				<string>public.item</string>
-				<string>com.apple.bom-archive</string>
-				<string>public.archive</string>
+				<string>public.composite-content</string>
+				<string>public.content</string>
 			</array>
 			<key>UTTypeIdentifier</key>
-			<string>org.idpf.epub</string>
+			<string>org.idpf.epub-container</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>com.apple.ostype</key>
-				<string>EPUB Book</string>
+				<string>EPUB</string>
 				<key>public.filename-extension</key>
 				<array>
 					<string>epub</string>
