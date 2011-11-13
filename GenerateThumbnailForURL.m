@@ -1,0 +1,109 @@
+#include <CoreFoundation/CoreFoundation.h>
+#include <CoreServices/CoreServices.h>
+#include <QuickLook/QuickLook.h>
+#import <Cocoa/Cocoa.h>
+#import "GNJUnZip.h"
+
+/* -----------------------------------------------------------------------------
+    Generate a thumbnail for file
+
+   This function's job is to create thumbnail for designated file as fast as possible
+   ----------------------------------------------------------------------------- */
+
+OSStatus GenerateThumbnailForURL(void *thisInterface,
+                                 QLThumbnailRequestRef thumbnail,
+                                 CFURLRef url,
+                                 CFStringRef contentTypeUTI,
+                                 CFDictionaryRef options,
+                                 CGSize maxSize)
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  NSString *path = [(NSURL *)url path];
+  GNJUnZip *unzip = [[GNJUnZip alloc] initWithZipFile:path];
+
+  NSData *xmlData = [unzip dataWithContentsOfFile:@"META-INF/container.xml"];
+  if(!xmlData) {
+    [unzip release];
+    [pool release];
+    return noErr;
+  }
+
+  NSXMLDocument *xmlDoc = [[NSXMLDocument alloc] initWithData:xmlData
+                                                      options:NSXMLDocumentTidyXML
+                                                        error:NULL];
+  if(!xmlDoc) {
+    [unzip release];
+    [pool release];
+    return noErr;
+  }
+
+  NSString *xpath = @"/container/rootfiles/rootfile/@full-path";
+  NSArray *nodes = [xmlDoc nodesForXPath:xpath error:NULL];
+  if(![nodes count]) {
+    [xmlDoc release];
+    [unzip release];
+    [pool release];
+    return noErr;
+  }
+
+  NSString *opfPath = [[nodes objectAtIndex:0] stringValue];
+  [xmlDoc release];
+
+  xmlData = [unzip dataWithContentsOfFile:opfPath];
+  if(!xmlData) {
+    [unzip release];
+    [pool release];
+    return noErr;
+  }
+
+  xmlDoc = [[NSXMLDocument alloc] initWithData:xmlData
+                                       options:NSXMLDocumentTidyXML
+                                         error:NULL];
+  if(!xmlDoc) {
+    [unzip release];
+    [pool release];
+    return noErr;
+  }
+
+  NSString *coverImagePath = nil;
+  xpath = @"/package/manifest/item[contains(concat(' ', normalize-space(@properties), ' '), ' cover-image ')]/@href";
+  nodes = [xmlDoc nodesForXPath:xpath error:NULL];
+  if([nodes count]) coverImagePath = [[nodes objectAtIndex:0] stringValue];
+  else {
+    xpath = @"/package/metadata/meta[@name='cover']/@content";
+    nodes = [xmlDoc nodesForXPath:xpath error:NULL];
+    if([nodes count]) {
+      NSString *coverImageId = [[nodes objectAtIndex:0] stringValue];
+      xpath = [NSString stringWithFormat:@"/package/manifest/item[@id='%@']/@href",
+               coverImageId];
+      NSArray *coverImageItemHrefs = [xmlDoc nodesForXPath:xpath error:NULL];
+      if([coverImageItemHrefs count]) {
+        coverImagePath = [[coverImageItemHrefs objectAtIndex:0] stringValue];
+      }
+    }
+  }
+
+  if([coverImagePath length]) {
+    if(![coverImagePath isAbsolutePath]) {
+      NSString *opfBasePath = [opfPath stringByDeletingLastPathComponent];
+      coverImagePath = [opfBasePath stringByAppendingPathComponent:coverImagePath];
+    }
+    NSData *coverImageData = [unzip dataWithContentsOfFile:coverImagePath];
+    if(coverImageData) {
+      QLThumbnailRequestSetImageWithData(thumbnail, (CFDataRef)coverImageData, NULL);
+    }
+  }
+
+  [xmlDoc release];
+  [unzip release];
+  [pool release];
+
+  return noErr;
+}
+
+void CancelThumbnailGeneration(void* thisInterface,
+                               QLThumbnailRequestRef thumbnail)
+{
+  // implement only if supported
+}
