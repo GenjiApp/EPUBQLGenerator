@@ -1,7 +1,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreServices/CoreServices.h>
 #include <QuickLook/QuickLook.h>
-#import "Cocoa/Cocoa.h"
+#import <Cocoa/Cocoa.h>
 #import "GNJUnZip.h"
 
 static const NSInteger kMaximumNumberOfLoadingHTML = 10;
