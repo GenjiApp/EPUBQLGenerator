@@ -90,8 +90,21 @@ OSStatus GenerateThumbnailForURL(void *thisInterface,
       coverImagePath = [opfBasePath stringByAppendingPathComponent:coverImagePath];
     }
     NSData *coverImageData = [unzip dataWithContentsOfFile:coverImagePath];
-    if(coverImageData) {
-      QLThumbnailRequestSetImageWithData(thumbnail, (CFDataRef)coverImageData, NULL);
+    NSImage *coverImage = [[[NSImage alloc] initWithData:coverImageData] autorelease];
+    if([coverImage isValid]) {
+      CGSize maximumSize = QLThumbnailRequestGetMaximumSize(thumbnail);
+      NSSize imageSize = [coverImage size];
+      CGFloat scale = maximumSize.width / ((imageSize.width > imageSize.height) ? imageSize.width : imageSize.height);
+      NSSize newSize = NSMakeSize(imageSize.width * scale, imageSize.height * scale);
+      NSImage *resizedImage = [[[NSImage alloc] initWithSize:newSize] autorelease];
+      [resizedImage lockFocus];
+      [coverImage drawInRect:NSMakeRect(0.0, 0.0, newSize.width, newSize.height)
+                    fromRect:NSMakeRect(0.0, 0.0, imageSize.width, imageSize.height)
+                   operation:NSCompositeSourceOver
+                    fraction:1.0];
+      [resizedImage unlockFocus];
+      NSData *resizedImageData = [resizedImage TIFFRepresentation];
+      QLThumbnailRequestSetImageWithData(thumbnail, (CFDataRef)resizedImageData, NULL);
     }
   }
 
