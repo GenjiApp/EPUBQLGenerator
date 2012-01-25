@@ -3,7 +3,7 @@
 //  EPUBImporter
 //
 //  Created by Genji on 11/07/12.
-//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//  Copyright 2011 Genji App. All rights reserved.
 //
 
 #import "GNJUnZip.h"
