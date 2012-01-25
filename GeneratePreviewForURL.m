@@ -42,6 +42,8 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
   NSString *path = [(NSURL *)url path];
   GNJUnZip *unzip = [[GNJUnZip alloc] initWithZipFile:path];
 
+  NSCharacterSet *setForTrim = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+
   // Get the path of .opf file
   NSData *xmlData = [unzip dataWithContentsOfFile:@"META-INF/container.xml"];
   if(!xmlData) {
@@ -62,18 +64,22 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
   NSString *xpath = @"/container/rootfiles/rootfile/@full-path";
   NSArray *nodes = [xmlDoc nodesForXPath:xpath error:NULL];
   if(![nodes count]) {
+    NSLog(@"no such nodes for xpath '%@'", xpath);
     [xmlDoc release];
     [unzip release];
     [pool release];
     return noErr;
   }
 
-  NSString *opfPath = [[nodes objectAtIndex:0] stringValue];
+  NSXMLNode *fullPathNode = [nodes objectAtIndex:0];
+  NSString *fullPathValue =[fullPathNode stringValue];
+  NSString *opfFilePath = [fullPathValue stringByTrimmingCharactersInSet:setForTrim];
+  opfFilePath = [opfFilePath stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
   [xmlDoc release];
 
 
   // Get the path of HTML files
-  xmlData = [unzip dataWithContentsOfFile:opfPath];
+  xmlData = [unzip dataWithContentsOfFile:opfFilePath];
   if(!xmlData) {
     [unzip release];
     [pool release];
@@ -92,6 +98,7 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
   xpath = @"/package/manifest/item";
   nodes = [xmlDoc nodesForXPath:xpath error:NULL];
   if(![nodes count]) {
+    NSLog(@"no such nodes for xpath '%@'", xpath);
     [xmlDoc release];
     [unzip release];
     [pool release];
@@ -102,12 +109,16 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
   for(NSXMLElement *elem in nodes) {
     NSXMLNode *idNode = [elem attributeForName:@"id"];
     NSXMLNode *hrefNode = [elem attributeForName:@"href"];
-    [manifest setObject:[hrefNode stringValue] forKey:[idNode stringValue]];
+    NSString *key = [[idNode stringValue] stringByTrimmingCharactersInSet:setForTrim];
+    NSString *path = [[hrefNode stringValue] stringByTrimmingCharactersInSet:setForTrim];
+    path = [path stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    [manifest setObject:path forKey:key];
   }
 
   xpath = @"/package/spine/itemref/@idref";
   nodes = [xmlDoc nodesForXPath:xpath error:NULL];
   if(![nodes count]) {
+    NSLog(@"no such nodes for xpath '%@'", xpath);
     [xmlDoc release];
     [unzip release];
     [pool release];
@@ -116,11 +127,14 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
 
   NSUInteger numberOfHTML = 0;
   NSMutableArray *htmlPaths = [NSMutableArray array];
+  NSString *opfBasePath = [opfFilePath stringByDeletingLastPathComponent];
   for(NSXMLNode *node in nodes) {
-    NSString *idref = [node stringValue];
-    NSString *opfBasePath = [opfPath stringByDeletingLastPathComponent];
-    NSString *htmlPath = [opfBasePath stringByAppendingPathComponent:
-                          [manifest objectForKey:idref]];
+    NSString *idref = [[node stringValue] stringByTrimmingCharactersInSet:setForTrim];
+    NSString *hrefValue = [manifest objectForKey:idref];
+    if(![hrefValue length]) continue;
+    NSString *htmlPath = nil;
+    if([hrefValue isAbsolutePath]) htmlPath = [hrefValue substringFromIndex:1];
+    else htmlPath = [opfBasePath stringByAppendingPathComponent:hrefValue];
     [htmlPaths addObject:htmlPath];
 
     if(maximumNumberOfLoadingHTML != kLoadAllFiles &&
@@ -160,9 +174,11 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
           return noErr;
         }
 
-        NSString *thePath = [node stringValue];
-        NSString *attachmentPath = [htmlBasePath
-                                    stringByAppendingPathComponent:thePath];
+        NSString *attachmentPath = nil;
+        NSString *srcValue = [[node stringValue] stringByTrimmingCharactersInSet:setForTrim];
+        srcValue = [srcValue stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        if([srcValue isAbsolutePath]) attachmentPath = [srcValue substringFromIndex:1];
+        else attachmentPath = [htmlBasePath stringByAppendingPathComponent:srcValue];
 
         // Resolve refarences to the parent directory.
         // Append "/" to top of the path,
@@ -176,10 +192,9 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
 
         [node setStringValue:[@"cid:" stringByAppendingString:attachmentPath]];
 
-        NSDictionary *attachment;
-        attachment = [NSDictionary
-                      dictionaryWithObject:attachmentData
-                      forKey:(NSString *)kQLPreviewPropertyAttachmentDataKey];
+        NSString *key = (NSString *)kQLPreviewPropertyAttachmentDataKey;
+        NSDictionary *attachment = [NSDictionary dictionaryWithObject:attachmentData
+                                                               forKey:key];
         [attachments setObject:attachment forKey:attachmentPath];
 
         if(maximumNumberOfLoadingImage != kLoadAllFiles &&
