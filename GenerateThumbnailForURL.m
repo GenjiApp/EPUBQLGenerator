@@ -5,7 +5,7 @@
 #import "GNJUnZip.h"
 
 /* -----------------------------------------------------------------------------
-    Generate a thumbnail for file
+   Generate a thumbnail for file
 
    This function's job is to create thumbnail for designated file as fast as possible
    ----------------------------------------------------------------------------- */
@@ -21,6 +21,8 @@ OSStatus GenerateThumbnailForURL(void *thisInterface,
 
   NSString *path = [(NSURL *)url path];
   GNJUnZip *unzip = [[GNJUnZip alloc] initWithZipFile:path];
+
+  NSCharacterSet *setForTrim = [NSCharacterSet whitespaceAndNewlineCharacterSet];
 
   NSData *xmlData = [unzip dataWithContentsOfFile:@"META-INF/container.xml"];
   if(!xmlData) {
@@ -47,10 +49,12 @@ OSStatus GenerateThumbnailForURL(void *thisInterface,
     return noErr;
   }
 
-  NSString *opfPath = [[nodes objectAtIndex:0] stringValue];
+  NSString *fullPathValue = [[nodes objectAtIndex:0] stringValue];
+  NSString *opfFilePath = [fullPathValue stringByTrimmingCharactersInSet:setForTrim];
+  opfFilePath = [opfFilePath stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
   [xmlDoc release];
 
-  xmlData = [unzip dataWithContentsOfFile:opfPath];
+  xmlData = [unzip dataWithContentsOfFile:opfFilePath];
   if(!xmlData) {
     [unzip release];
     [pool release];
@@ -74,7 +78,7 @@ OSStatus GenerateThumbnailForURL(void *thisInterface,
     xpath = @"/package/metadata/meta[@name='cover']/@content";
     nodes = [xmlDoc nodesForXPath:xpath error:NULL];
     if([nodes count]) {
-      NSString *coverImageId = [[nodes objectAtIndex:0] stringValue];
+      NSString *coverImageId = [[[nodes objectAtIndex:0] stringValue] stringByTrimmingCharactersInSet:setForTrim];
       xpath = [NSString stringWithFormat:@"/package/manifest/item[@id='%@']/@href",
                coverImageId];
       NSArray *coverImageItemHrefs = [xmlDoc nodesForXPath:xpath error:NULL];
@@ -85,8 +89,10 @@ OSStatus GenerateThumbnailForURL(void *thisInterface,
   }
 
   if([coverImagePath length]) {
+    coverImagePath = [coverImagePath stringByTrimmingCharactersInSet:setForTrim];
+    coverImagePath = [coverImagePath stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
     if(![coverImagePath isAbsolutePath]) {
-      NSString *opfBasePath = [opfPath stringByDeletingLastPathComponent];
+      NSString *opfBasePath = [opfFilePath stringByDeletingLastPathComponent];
       coverImagePath = [opfBasePath stringByAppendingPathComponent:coverImagePath];
     }
     NSData *coverImageData = [unzip dataWithContentsOfFile:coverImagePath];
