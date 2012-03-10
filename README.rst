@@ -14,7 +14,7 @@ Copy EPUBQLGenerator.qlgenerator to ``/Library/QuickLook`` or ``~/Library/QuickL
 Restrictions
 ============
 
-#. Doesn't apply CSS
+#. Can't apply CSS which is linked from HTML
 #. Previews up to 10 HTML files per a EPUB
 #. Shows up to 10 images per a HTML file
 
