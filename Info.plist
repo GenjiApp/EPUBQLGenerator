@@ -47,6 +47,8 @@
 	</dict>
 	<key>CFPlugInUnloadFunction</key>
 	<string></string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright (c) 2011-2012 Genji App.</string>
 	<key>QLNeedsToBeRunInMainThread</key>
 	<false/>
 	<key>QLPreviewHeight</key>
