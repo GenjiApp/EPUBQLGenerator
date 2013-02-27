@@ -160,9 +160,19 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
     if(!xmlDoc) continue;
 
     if(maximumNumberOfLoadingImage != 0) {
-      // Rewrite the path of images,
-      // store the data of the attachment images to dictionary,
-      xpath = @"//img/@src";
+      // Rewrite the paths of embedded image files and css files,
+      // and then store the data to an attachment dictionary,
+      xpath = @"//img/@src"
+        @"|//*[local-name()='svg']/*[local-name()='image']/@*[local-name()='href']"
+        @"|//*[local-name()='svg']/*[local-name()='image']/@href"
+        @"|//*[local-name()='svg']/image/@*[local-name()='href']"
+        @"|//*[local-name()='svg']/image/@href"
+        @"|//svg/*[local-name()='image']/@*[local-name()='href']"
+        @"|//svg/*[local-name()='image']/@href"
+        @"|//svg/image/@*[local-name()='href']"
+        @"|//svg/image/@href"
+        @"|//head/link/@href"
+      ;
       nodes = [xmlDoc nodesForXPath:xpath error:NULL];
       NSString *htmlBasePath = [htmlPath stringByDeletingLastPathComponent];
       NSUInteger numberOfImage = 0;
