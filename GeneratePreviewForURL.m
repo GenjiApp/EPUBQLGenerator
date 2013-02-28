@@ -78,7 +78,6 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
   [xmlDoc release];
 
 
-  // Get the path of HTML files
   xmlData = [unzip dataWithContentsOfFile:opfFilePath];
   if(!xmlData) {
     [unzip release];
@@ -94,6 +93,16 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
     [pool release];
     return noErr;
   }
+
+  // Get EPUB title
+  NSString *epubTitle = nil;
+  xpath = @"/package/metadata/*[local-name()='title']";
+  nodes = [xmlDoc nodesForXPath:xpath error:NULL];
+  if([nodes count]) {
+    NSXMLNode *node = [nodes objectAtIndex:0];
+    epubTitle = [node stringValue];
+  }
+  if([epubTitle length] == 0) epubTitle = [path lastPathComponent];
 
   xpath = @"/package/manifest/item";
   nodes = [xmlDoc nodesForXPath:xpath error:NULL];
@@ -148,10 +157,23 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
     return noErr;
   }
 
+  // Create an HTML document for output
+  NSXMLElement *htmlElement = [NSXMLElement elementWithName:@"html"];
+  NSXMLElement *headElement = [NSXMLElement elementWithName:@"head"];
+  NSXMLElement *metaElement = [NSXMLElement elementWithName:@"meta"];
+  NSXMLNode *charSetAttribute = [[[NSXMLNode alloc] initWithKind:NSXMLAttributeKind] autorelease];
+  [charSetAttribute setName:@"charset"];
+  [charSetAttribute setStringValue:@"utf-8"];
+  [metaElement addAttribute:charSetAttribute];
+  [headElement addChild:metaElement];
+  NSXMLElement *titleElement = [NSXMLElement elementWithName:@"title"];
+  [titleElement setStringValue:epubTitle];
+  [headElement addChild:titleElement];
+  [htmlElement addChild:headElement];
+  NSXMLDocument *htmlDocument = [[NSXMLDocument alloc] initWithRootElement:htmlElement];
 
   // Combine the data of HTML files.
   NSMutableDictionary *attachments = [NSMutableDictionary dictionary];
-  NSMutableData *htmlData = [NSMutableData data];
   for(NSString *htmlPath in htmlPaths) {
     NSData *rawHtmlData = [unzip dataWithContentsOfFile:htmlPath];
     xmlDoc = [[NSXMLDocument alloc] initWithData:rawHtmlData
@@ -159,9 +181,9 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
                                            error:NULL];
     if(!xmlDoc) continue;
 
+    // Rewrite the paths of embedded image files and css files,
+    // and then store the data to an attachment dictionary,
     if(maximumNumberOfLoadingImage != 0) {
-      // Rewrite the paths of embedded image files and css files,
-      // and then store the data to an attachment dictionary,
       xpath = @"//img/@src"
         @"|//*[local-name()='svg']/*[local-name()='image']/@*[local-name()='href']"
         @"|//*[local-name()='svg']/*[local-name()='image']/@href"
@@ -178,6 +200,7 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
       NSUInteger numberOfImage = 0;
       for(NSXMLNode *node in nodes) {
         if(QLPreviewRequestIsCancelled(preview)) {
+          [htmlDocument release];
           [xmlDoc release];
           [unzip release];
           [pool release];
@@ -212,7 +235,7 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
       }
     }
 
-    [htmlData appendData:[xmlDoc XMLData]];
+    [[htmlDocument rootElement] addChild:[[[xmlDoc rootElement] copy] autorelease]];
     [xmlDoc release];
   }
 
@@ -225,10 +248,11 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
                               (NSString *)kQLPreviewPropertyAttachmentsKey,
                               nil];
   QLPreviewRequestSetDataRepresentation(preview,
-                                        (CFDataRef)htmlData,
+                                        (CFDataRef)[htmlDocument XMLData],
                                         kUTTypeHTML,
                                         (CFDictionaryRef)properties);
 
+  [htmlDocument release];
   [unzip release];
   [pool release];
 
