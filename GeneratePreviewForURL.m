@@ -178,6 +178,7 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
   NSMutableDictionary *attachments = [NSMutableDictionary dictionary];
   for(NSString *htmlPath in htmlPaths) {
     NSData *rawHtmlData = [unzip dataWithContentsOfFile:htmlPath];
+    if(!rawHtmlData) continue;
     xmlDoc = [[NSXMLDocument alloc] initWithData:rawHtmlData
                                          options:NSXMLDocumentTidyXML
                                            error:NULL];
