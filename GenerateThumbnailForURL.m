@@ -3,6 +3,7 @@
 #include <QuickLook/QuickLook.h>
 #import <Cocoa/Cocoa.h>
 #import "GNJUnZip.h"
+#import "NSString+Additions.h"
 
 /* -----------------------------------------------------------------------------
    Generate a thumbnail for file
@@ -91,10 +92,12 @@ OSStatus GenerateThumbnailForURL(void *thisInterface,
   if([coverImagePath length]) {
     coverImagePath = [coverImagePath stringByTrimmingCharactersInSet:setForTrim];
     coverImagePath = [coverImagePath stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
-    if(![coverImagePath isAbsolutePath]) {
+    if([coverImagePath isAbsolutePath]) coverImagePath = [coverImagePath substringFromIndex:1];
+    else {
       NSString *opfBasePath = [opfFilePath stringByDeletingLastPathComponent];
       coverImagePath = [opfBasePath stringByAppendingPathComponent:coverImagePath];
     }
+    coverImagePath = [coverImagePath stringByForciblyResolvingSymlinksInPath];
     NSData *coverImageData = [unzip dataWithContentsOfFile:coverImagePath];
     NSImage *coverImage = [[[NSImage alloc] initWithData:coverImageData] autorelease];
     if([coverImage isValid]) {

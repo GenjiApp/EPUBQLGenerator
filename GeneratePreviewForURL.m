@@ -3,6 +3,7 @@
 #include <QuickLook/QuickLook.h>
 #import <Cocoa/Cocoa.h>
 #import "GNJUnZip.h"
+#import "NSString+Additions.h"
 
 static const NSInteger kMaximumNumberOfLoadingHTML = 10;
 static const NSInteger kMaximumNumberOfLoadingImage = 10;
@@ -119,9 +120,9 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
     NSXMLNode *idNode = [elem attributeForName:@"id"];
     NSXMLNode *hrefNode = [elem attributeForName:@"href"];
     NSString *key = [[idNode stringValue] stringByTrimmingCharactersInSet:setForTrim];
-    NSString *path = [[hrefNode stringValue] stringByTrimmingCharactersInSet:setForTrim];
-    path = [path stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
-    [manifest setObject:path forKey:key];
+    NSString *hrefValue = [[hrefNode stringValue] stringByTrimmingCharactersInSet:setForTrim];
+    hrefValue = [hrefValue stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    [manifest setObject:hrefValue forKey:key];
   }
 
   xpath = @"/package/spine/itemref/@idref";
@@ -144,6 +145,7 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
     NSString *htmlPath = nil;
     if([hrefValue isAbsolutePath]) htmlPath = [hrefValue substringFromIndex:1];
     else htmlPath = [opfBasePath stringByAppendingPathComponent:hrefValue];
+    htmlPath = [htmlPath stringByForciblyResolvingSymlinksInPath];
     [htmlPaths addObject:htmlPath];
 
     if(maximumNumberOfLoadingHTML != kLoadAllFiles &&
@@ -212,13 +214,7 @@ OSStatus GeneratePreviewForURL(void *thisInterface,
         srcValue = [srcValue stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
         if([srcValue isAbsolutePath]) attachmentPath = [srcValue substringFromIndex:1];
         else attachmentPath = [htmlBasePath stringByAppendingPathComponent:srcValue];
-
-        // Resolve refarences to the parent directory.
-        // Append "/" to top of the path,
-        // because stringByStandardizingPath can't resolve relative path.
-        attachmentPath = [@"/" stringByAppendingPathComponent:attachmentPath];
-        attachmentPath = [attachmentPath stringByStandardizingPath];
-        attachmentPath = [attachmentPath substringFromIndex:1];
+        attachmentPath = [attachmentPath stringByForciblyResolvingSymlinksInPath];
 
         NSData *attachmentData = [unzip dataWithContentsOfFile:attachmentPath];
         if(!attachmentData) continue;
